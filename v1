@@ -1,0 +1,280 @@
+import os
+import shutil
+import subprocess
+import re
+from datetime import datetime
+from dateutil import parser
+import json
+
+# Configuration
+SOURCE_DIR = r"C:\Users\XYZ\Pictures\Input_Script"
+DEST_DIR = r"C:\Users\XYZ\Pictures\Photos"
+EXIFTOOL_PATH = r"C:\Users\XYZ\Pictures\Photos_script\exiftool.exe"
+
+# Supported image extensions
+IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.tiff', '.raw', '.cr2', '.nef'}
+
+# Date patterns for filename and directory matching
+DATE_PATTERNS = [
+    r'(\d{4})[_-](\d{2})[_-](\d{2})',  # YYYY-MM-DD or YYYY_MM_DD
+    r'(\d{4})(\d{2})(\d{2})',          # YYYYMMDD
+    r'([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})'  # Month DD, YYYY
+]
+
+def parse_exif_date(date_str):
+    """Parse EXIF date string in format 'YYYY:MM:DD HH:MM:SS'"""
+    try:
+        # Split into date and time parts
+        if not date_str or ':' not in date_str:
+            return None
+            
+        # Handle timezone if present
+        if '-' in date_str:
+            date_str = date_str.split('-')[0]
+            
+        # Replace EXIF date separator ':' with standard '-' for dates
+        parts = date_str.strip().split(' ')
+        if len(parts) >= 1:
+            date_part = parts[0].replace(':', '-')
+            if len(parts) > 1:
+                time_part = parts[1]
+                formatted_date = f"{date_part} {time_part}"
+            else:
+                formatted_date = date_part
+                
+            return parser.parse(formatted_date)
+    except Exception as e:
+        print(f"Error parsing EXIF date '{date_str}': {e}")
+    return None
+
+def get_exif_date(file_path):
+    """Extract date from EXIF data using ExifTool."""
+    try:
+        print(f"\nTrying to read EXIF data from: {file_path}")
+        result = subprocess.run(
+            [EXIFTOOL_PATH, '-json', '-DateTimeOriginal', '-CreateDate', '-FileModifyDate', file_path],
+            capture_output=True, text=True, encoding='utf-8'
+        )
+        
+        if result.stdout:
+            data = json.loads(result.stdout)
+            if data:
+                print("EXIF data found:")
+                print(json.dumps(data[0], indent=2))
+                
+                # Try DateTimeOriginal first
+                if 'DateTimeOriginal' in data[0]:
+                    date = parse_exif_date(data[0]['DateTimeOriginal'])
+                    if date:
+                        print(f"Using DateTimeOriginal: {date}")
+                        return date
+                
+                # Try CreateDate next
+                if 'CreateDate' in data[0]:
+                    date = parse_exif_date(data[0]['CreateDate'])
+                    if date:
+                        print(f"Using CreateDate: {date}")
+                        return date
+                
+                # Try FileModifyDate as last resort
+                if 'FileModifyDate' in data[0]:
+                    date = parse_exif_date(data[0]['FileModifyDate'])
+                    if date:
+                        print(f"Using FileModifyDate: {date}")
+                        return date
+                
+        print("No valid EXIF date found")
+    except Exception as e:
+        print(f"Error reading EXIF data: {e}")
+    return None
+
+def extract_date_from_string(text):
+    """Extract date from a string using various patterns."""
+    print(f"\nTrying to extract date from text: {text}")
+    for pattern in DATE_PATTERNS:
+        match = re.search(pattern, text)
+        if match:
+            try:
+                if len(match.groups()) == 3:
+                    if match.group(1).isalpha():
+                        # Handle "Month DD, YYYY" format
+                        date = parser.parse(text)
+                        print(f"Found date using month name pattern: {date}")
+                        return date
+                    else:
+                        # Handle numeric formats
+                        year, month, day = match.groups()
+                        date = datetime(int(year), int(month), int(day))
+                        print(f"Found date using numeric pattern: {date}")
+                        return date
+            except ValueError as e:
+                print(f"Error parsing date: {e}")
+                continue
+    print("No date found in text")
+    return None
+
+def get_photo_date(file_path):
+    """Determine photo date using multiple methods in priority order."""
+    print(f"\nProcessing file: {file_path}")
+    
+    # 1. Try EXIF data
+    print("Attempting to get EXIF date...")
+    date = get_exif_date(file_path)
+    if date:
+        print(f"Successfully got date from EXIF: {date}")
+        return date
+
+    # 2. Try directory name
+    print("Attempting to get date from directory name...")
+    dir_name = os.path.dirname(file_path)
+    date = extract_date_from_string(dir_name)
+    if date:
+        print(f"Successfully got date from directory: {date}")
+        return date
+
+    # 3. Try filename
+    print("Attempting to get date from filename...")
+    file_name = os.path.basename(file_path)
+    date = extract_date_from_string(file_name)
+    if date:
+        print(f"Successfully got date from filename: {date}")
+        return date
+
+    print("WARNING: Could not determine date from any source!")
+    return None
+
+def get_file_hash(file_path):
+    """Calculate MD5 hash of a file."""
+    import hashlib
+    with open(file_path, 'rb') as f:
+        md5_hash = hashlib.md5()
+        while chunk := f.read(8192):
+            md5_hash.update(chunk)
+    return md5_hash.hexdigest()
+
+def process_photos():
+    """Main function to process all photos."""
+    # Dictionary to keep track of counters for each day
+    day_counters = {}
+    
+    # Keep track of processed files to avoid duplicates
+    processed_hashes = set()
+    
+    # First, get hashes of all existing files in destination
+    print("\nScanning existing files in destination...")
+    for root, _, files in os.walk(DEST_DIR):
+        for filename in files:
+            if os.path.splitext(filename)[1].lower() in IMAGE_EXTENSIONS:
+                file_path = os.path.join(root, filename)
+                try:
+                    file_hash = get_file_hash(file_path)
+                    processed_hashes.add(file_hash)
+                    print(f"Found existing file: {filename}")
+                except Exception as e:
+                    print(f"Error processing existing file {file_path}: {e}")
+    
+    # Process all files recursively from source
+    for root, _, files in os.walk(SOURCE_DIR):
+        for filename in files:
+            if os.path.splitext(filename)[1].lower() in IMAGE_EXTENSIONS:
+                file_path = os.path.join(root, filename)
+                
+                # Check if file is unique
+                try:
+                    file_hash = get_file_hash(file_path)
+                    if file_hash in processed_hashes:
+                        print(f"\nSkipping duplicate file: {file_path}")
+                        continue
+                    processed_hashes.add(file_hash)
+                except Exception as e:
+                    print(f"Error checking file hash {file_path}: {e}")
+                    continue
+
+                # Get photo date
+                photo_date = get_photo_date(file_path)
+                if not photo_date:
+                    print(f"Skipping {file_path} - Could not determine date")
+                    continue
+
+                # Create destination directory structure
+                year_month = f"{photo_date.year:04d}/{photo_date.month:02d}"
+                target_dir = os.path.join(DEST_DIR, year_month)
+                os.makedirs(target_dir, exist_ok=True)
+
+                # Generate new filename
+                # Use the date as the key for the counter
+                date_key = f"{photo_date.year}{photo_date.month:02d}{photo_date.day:02d}"
+                day_counters[date_key] = day_counters.get(date_key, 0) + 1
+                counter = day_counters[date_key]
+                
+                extension = os.path.splitext(filename)[1].lower()
+                
+                # Format the new filename with date and time using the requested format:
+                # YYYY-MM-DD_HH-MM_###.ext
+                new_filename = (
+                    f"{photo_date.year:04d}-{photo_date.month:02d}-{photo_date.day:02d}_"
+                    f"{photo_date.hour:02d}-{photo_date.minute:02d}_"
+                    f"{counter:03d}{extension}"
+                )
+                
+                target_path = os.path.join(target_dir, new_filename)
+
+                # Check if target file already exists
+                if os.path.exists(target_path):
+                    print(f"Skipping {file_path} - Target file already exists: {target_path}")
+                    continue
+
+                # Copy the file
+                try:
+                    shutil.copy2(file_path, target_path)
+                    print(f"Successfully copied: {file_path} -> {target_path}")
+                except Exception as e:
+                    print(f"Error copying {file_path}: {e}")
+
+def verify_paths():
+    """Verify all paths exist and are accessible."""
+    errors = []
+    
+    # Check ExifTool
+    print(f"\nChecking ExifTool at: {EXIFTOOL_PATH}")
+    if not os.path.exists(EXIFTOOL_PATH):
+        errors.append(f"ExifTool not found at {EXIFTOOL_PATH}")
+    else:
+        print("ExifTool found successfully")
+    
+    # Check source directory
+    print(f"\nChecking source directory: {SOURCE_DIR}")
+    if not os.path.exists(SOURCE_DIR):
+        errors.append(f"Source directory not found: {SOURCE_DIR}")
+    else:
+        print("Source directory found successfully")
+    
+    # Check destination directory exists
+    print(f"\nChecking destination directory: {DEST_DIR}")
+    if not os.path.exists(DEST_DIR):
+        try:
+            os.makedirs(DEST_DIR)
+            print("Created destination directory")
+        except Exception as e:
+            errors.append(f"Cannot create destination directory {DEST_DIR}: {e}")
+    else:
+        print("Destination directory exists")
+    
+    return errors
+
+if __name__ == "__main__":
+    print("Starting photo organization...")
+    
+    # Verify paths
+    errors = verify_paths()
+    if errors:
+        print("\nError(s) found:")
+        for error in errors:
+            print(f"- {error}")
+        print("\nPlease correct these errors and run the script again.")
+        exit(1)
+    
+    # Process the photos
+    process_photos()
+    
+    print("\nPhoto organization complete!")
