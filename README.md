@@ -1,54 +1,78 @@
-Instructions:
-0) Enter the following commands into Command Prompt (after changing the filepaths as required)
-1) cd C:\Users\XYZ\Pictures\Python_Script
-2) python photo_organizer.py
+# Photo Organizer Script
 
+This Python script automatically organizes your photos into a structured folder system based on their date information. It prioritizes EXIF data for date extraction, but also intelligently falls back to directory and filename analysis when EXIF is unavailable.
 
-Key Features:
+## Instructions
 
-Source and Destinations
+1.  **Open Command Prompt (or Terminal):**
+    *   Navigate to the script's location using the `cd` command.
+    *   **Important:** Replace `C:\PhotoScript` with the actual path to the directory containing `photo_organizer.py`.
 
-Reads from: C:\Users\XYZ\Pictures\Input_Script
-Writes to: C:\Users\XYZ\Pictures\Photos
+        ```bash
+        cd C:\PhotoScript
+        ```
 
+2.  **Run the script:**
 
-File Support
+    ```bash
+        python photo_organizer.py
+    ```
 
-Handles multiple image formats (jpg, jpeg, png, gif, tiff)
+## Key Features
 
-File Filtering
+### Source and Destinations
 
-Automatically skips files with "edited" in filename (case-insensitive)
-Checks for duplicates using MD5 hash
-Preserves existing files (won't overwrite)
+*   **Reads From:**  `C:\Photo_and_video_to_sort`
+*   **Writes To:**  `C:\Photo_and_video_sorted\Photo` or `C:\Photo_and_video_sorted\Video` based on selected file extensions
 
+    **Important:** Be sure to replace these with your actual input and output directories.
 
-Date Extraction (in priority order)
+### File Support
 
-First tries EXIF DateTimeOriginal
-Then tries EXIF CreateDate
-Then tries EXIF FileModifyDate
-Looks for dates in directory names
-Looks for dates in filenames
+*   **Handles multiple image formats:** '.jpg', '.jpeg', '.png', '.gif', '.tiff', '.raw', '.cr2', '.nef', '.heic'.
+*   **Handles multiple video formats:** '.mp4', '.3gp', '.mov', '.avi'.
 
+### File Filtering
 
-File Organization
+*   **Skips "edited" files:** Automatically skips files that have "edited" (case-insensitive) in their filename.
+*   **Duplicate Checking:**  Uses MD5 hash to identify and skip duplicate files.
+*   **Preserves Existing Files:** The script will not overwrite any existing files.
 
-Creates YYYY/MM folder structure
-Names files as: YYYY-MM-DD_HH-MM_###.ext
-Example: 2015-01-21_16-52_001.jpg
+### Date Extraction (Priority Order)
 
+The script will extract date information in this order:
 
-Basic Error Handling
+1.  **EXIF DateTimeOriginal:**  The preferred EXIF tag.
+2.  **EXIF CreateDate:** Used if `DateTimeOriginal` is unavailable.
+3.  **EXIF FileModifyDate:**  Used as a last resort if the above EXIF tags aren't found.
+4.  **Filename:** Looks for dates embedded in the filename.
+5.  **Directory Name:** Looks for dates embedded in the directory name.
 
-Checks if paths exist
-Verifies ExifTool is available
-Creates directories if needed
-Basic error messages for common issues
+### File Organization
 
+*   **YYYY/MM Folder Structure:**  Creates year and month folders to keep your pictures well organized. For example: `2025/05`.
+*   **File Naming:**  Renames files using this format:  `YYYY-MM-DD_HH-MM_###.ext`
+    *   Example:  `2025-05-21_16-52_001.jpg`
+    *  `###` is a counter to ensure uniqueness
 
-Progress Reporting
+### Basic Error Handling
 
-Shows which file is being processed
-Reports successful copies
-Indicates when files are skipped
+*   **Path Existence:**  Verifies that the specified input and output paths are valid.
+*   **ExifTool Availability:** Checks if ExifTool is installed and accessible in the system's PATH.
+*   **Directory Creation:**  Creates the output directories if they do not already exist.
+*   **Clear Error Messages:** Provides basic error messages for common issues.
+
+### Progress Reporting
+
+*   **Logs** Writes complete log to the destination folder as `FILE_TYPE_%Y-%m-%d_%H-%M-%S.log` like `Photo_2025-01-16_15-30-45.log` or `Video_2025-01-16_15-30-45.log` based on selected file extensions.
+*   **File Processing:** Displays the name of the file currently being processed.
+*   **Success Messages:** Reports when a file has been successfully copied.
+*   **Skipped Messages:** Indicates when files are skipped due to being duplicates or marked "edited."
+
+## Important Notes
+
+*   `exiftool` is available as portable version in the repository.
+*   If you prefer another version, ensure that `exiftool` is installed and accessible. You may need to add it to your system's PATH environment variables.
+*   Remember to replace the example file paths with your specific source and destination directories in the script.
+
+This script will greatly simplify your photo management by sorting and naming files appropriately. Let me know if you have any further questions.
