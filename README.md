@@ -4,6 +4,27 @@ This Python script automatically organizes your photos into a structured folder 
 
 ## Instructions
 
+0. **Verify all files extentions that are present in your Photo/Video folder running next powershell command (not sure hot to do it in python though)**:
+    ```pwsh
+    Get-ChildItem -Recurse -File | ForEach-Object { $_.Extension } | Sort-Object -Unique
+    ```
+    it gives you something like next (*I was surprised about old `.3gp` video (Samsung?) and `.nrw` Nikon photo formats. Also notice `.tif` and `.tiff`*):
+    ```
+    pwsh >
+    .3gp
+    .avi
+    .HEIC
+    .jpeg
+    .jpg
+    .nrw
+    .MOV
+    .mp4
+    .tif
+    .tiff
+    .zip
+    ```
+    Thus, you can adjust your `IMAGE_EXTENSIONS` or `VIDEO_EXTENSIONS` filter.
+
 1.  **Open Command Prompt (or Terminal):**
     *   Navigate to the script's location using the `cd` command.
     *   **Important:** Replace `C:\PhotoScript` with the actual path to the directory containing `photo_organizer.py`.

@@ -13,15 +13,18 @@ DEST_DIR = BASE_DIR
 FILE = ""
 EXIFTOOL_PATH = r"exiftool-13.12\exiftool.exe"
 
-# Supported image extensions
-IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.tiff', '.raw', '.cr2', '.nef', '.heic'}
-VIDEO_EXTENSIONS = {'.mp4', '.3gp', '.mov', '.avi'}
+IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.tif', '.tiff', '.raw', '.cr2', '.nef', '.heic', '.nrw'} # Supported image extensions
+VIDEO_EXTENSIONS = {'.mp4', '.3gp', '.mov', '.avi'} # Supported video extensions
+ALL_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS # All supported extensions
 
 # Replace depending on file types: Photo or Video
-FILE_EXTENSIONS = IMAGE_EXTENSIONS
+FILE_EXTENSIONS = ALL_EXTENSIONS
 
-FILE_TYPE = "Photo" if FILE_EXTENSIONS == IMAGE_EXTENSIONS else "Video"
-DEST_DIR = f"{BASE_DIR}\\{FILE_TYPE}"
+if FILE_EXTENSIONS == ALL_EXTENSIONS:
+    FILE_TYPE = 'All'
+else:
+    FILE_TYPE = "Photo" if FILE_EXTENSIONS == IMAGE_EXTENSIONS else "Video"
+    DEST_DIR = f"{BASE_DIR}\\{FILE_TYPE}"
 
 # Format the log file name (e.g., "2025-01-16_15-30-45.log")
 file_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.log")
@@ -29,13 +32,13 @@ FILE = f"{BASE_DIR}\\{FILE_TYPE}_{file_name}" # Log file path (set empty to disa
 
 # Date patterns for filename and directory matching
 DATE_PATTERNS = [
-    r'(\d{4})[_-](\d{2})[_-](\d{2})',       # YYYY-MM-DD or YYYY_MM_DD
-    r'(\d{4})(\d{2})(\d{2})[_-](\d{2})(\d{2})(\d{2})', # YYYYMMDD_HHmmss
+    r'(\d{4})[_.-](\d{2})[_.-](\d{2})',     # YYYY-MM-DD or YYYY_MM_DD or YYYY.MM.DD
+    r'(\d{4})(\d{2})(\d{2})[ _-](\d{2})(\d{2})(\d{2})', # YYYYMMDD_HHmmss or YYYYMMDD HHmmss or YYYYMMDD-HHmmss
     r'(\d{4})(\d{2})(\d{2})',               # YYYYMMDD
     r'([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})'  # Month DD, YYYY
 ]
 
-def log(message, mode='a', console=True):
+def log(message: str, mode='a', console=True):
     if console:
         print(message)
     if FILE:
@@ -44,6 +47,8 @@ def log(message, mode='a', console=True):
                 f.write(f"{message}\n")
         except Exception as e:
             print(f"Error writing file '{FILE}': {e}")
+
+log(f"Photo Organizer Log: {file_name}", 'w', console=False) # Create log file
 
 def parse_exif_date(date_str):
     """Parse EXIF date string in format 'YYYY:MM:DD HH:MM:SS'"""
@@ -204,7 +209,7 @@ def process_photos():
                 try:
                     file_hash = get_file_hash(file_path)
                     processed_hashes.add(file_hash)
-                    log(f"Found {COUNT} existing file: '{filename}'")
+                    log(f"Found {COUNT} existing file: '{filename}'", console=False)
                 except Exception as e:
                     log(f"Error processing existing file '{file_path}': {e}")
     
@@ -275,6 +280,18 @@ def verify_paths():
     """Verify all paths exist and are accessible."""
     errors = []
     
+    # Check destination directory exists
+    log(f"\nChecking destination directory: {DEST_DIR}")
+    if not os.path.exists(DEST_DIR):
+        try:
+            os.makedirs(DEST_DIR)
+            log("Starting photo organization...", 'w', console=False)
+            log("\nCreated destination directory")
+        except Exception as e:
+            errors.append(f"Cannot create destination directory {DEST_DIR}: {e}")
+    else:
+        log("Destination directory exists")
+    
     # Check ExifTool
     log(f"\nChecking ExifTool at: {EXIFTOOL_PATH}")
     if not os.path.exists(EXIFTOOL_PATH):
@@ -289,33 +306,32 @@ def verify_paths():
     else:
         log("Source directory found successfully")
     
-    # Check destination directory exists
-    log(f"\nChecking destination directory: {DEST_DIR}")
-    if not os.path.exists(DEST_DIR):
-        try:
-            os.makedirs(DEST_DIR)
-            log("Created destination directory")
-        except Exception as e:
-            errors.append(f"Cannot create destination directory {DEST_DIR}: {e}")
-    else:
-        log("Destination directory exists")
-    
     return errors
 
+def format_timedelta(td):
+    # Convert seconds to hours, minutes, and remaining seconds
+    hours, remainder = divmod(td.seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    microseconds = str(td.microseconds)[:2]
+
+    return f"{hours:02}:{minutes:02}:{seconds:02}.{microseconds}"
+
 if __name__ == "__main__":
-    log("Starting photo organization...", 'w')
-    
-    # Verify paths
+    start_time = datetime.now()
+    log(f"Starting photo organization at {start_time} ...", 'w')
+
     errors = verify_paths()
-    
+
     if errors:
         log("\nError(s) found:")
         for error in errors:
             log(f"- {error}")
         log("\nPlease correct these errors and run the script again.")
         exit(1)
-    
-    # Process the photos
+
     process_photos()
     
-    log("\nPhoto organization complete!\n")
+    end_time = datetime.now()
+    execution_time = format_timedelta(end_time - start_time)
+    
+    log(f"\nPhoto organization completed at {end_time} (time: {execution_time})!\n")
