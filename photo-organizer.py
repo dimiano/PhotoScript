@@ -10,8 +10,10 @@ import json
 SOURCE_DIR = r"C:\Photo_and_video_to_sort"
 BASE_DIR = r"C:\Photo_and_video_sorted"
 DEST_DIR = BASE_DIR
-FILE = ""
+LOG_FILE = ""
 EXIFTOOL_PATH = r"exiftool-13.12\exiftool.exe"
+USE_DATE_IN_FILENAME = False
+CHECK_ERRORS_ONLY = False
 
 IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.tif', '.tiff', '.raw', '.cr2', '.nef', '.heic', '.nrw'} # Supported image extensions
 VIDEO_EXTENSIONS = {'.mp4', '.3gp', '.mov', '.avi'} # Supported video extensions
@@ -28,7 +30,7 @@ else:
 
 # Format the log file name (e.g., "2025-01-16_15-30-45.log")
 file_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.log")
-FILE = f"{BASE_DIR}\\{FILE_TYPE}_{file_name}" # Log file path (set empty to disable logging)
+LOG_FILE = f"{BASE_DIR}\\{FILE_TYPE}_{file_name}" # Log file path (set empty to disable logging)
 
 # Date patterns for filename and directory matching
 DATE_PATTERNS = [
@@ -41,12 +43,12 @@ DATE_PATTERNS = [
 def log(message: str, mode='a', console=True):
     if console:
         print(message)
-    if FILE:
+    if LOG_FILE:
         try:
-            with open(FILE, mode, encoding="utf-8") as f:
+            with open(LOG_FILE, mode, encoding="utf-8") as f:
                 f.write(f"{message}\n")
         except Exception as e:
-            print(f"Error writing file '{FILE}': {e}")
+            print(f"Error writing file '{LOG_FILE}': {e}")
 
 log(f"Photo Organizer Log: {file_name}", 'w', console=False) # Create log file
 
@@ -239,9 +241,17 @@ def process_photos():
                     log(f"Skipping {COUNT} '{file_path}' - Could not determine date")
                     continue
 
+                # Dry run mode
+                if CHECK_ERRORS_ONLY:
+                    continue
+                
                 # Create destination directory structure
-                year_month = f"{photo_date.year:04d}\\{photo_date.month:02d}"
-                target_dir = os.path.join(DEST_DIR, year_month)
+                if USE_DATE_IN_FILENAME:
+                    destination_folder = f"{photo_date.year:04d}\\{photo_date.month:02d}\\{photo_date.day:02d}"
+                else:
+                    destination_folder = f"{photo_date.year:04d}\\{photo_date.month:02d}"
+                    
+                target_dir = os.path.join(DEST_DIR, destination_folder)
                 os.makedirs(target_dir, exist_ok=True)
 
                 # Generate new filename
