@@ -12,6 +12,8 @@ BASE_DIR = r"C:\Photo_and_video_sorted"
 DEST_DIR = BASE_DIR
 FILE = ""
 EXIFTOOL_PATH = r"exiftool-13.12\exiftool.exe"
+USE_DATE_IN_FILENAME = False
+CHECK_ERRORS_ONLY = False
 
 IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.tif', '.tiff', '.raw', '.cr2', '.nef', '.heic', '.nrw'} # Supported image extensions
 VIDEO_EXTENSIONS = {'.mp4', '.3gp', '.mov', '.avi'} # Supported video extensions
@@ -239,9 +241,17 @@ def process_photos():
                     log(f"Skipping {COUNT} '{file_path}' - Could not determine date")
                     continue
 
+                # Dry run mode
+                if CHECK_ERRORS_ONLY:
+                    continue
+                
                 # Create destination directory structure
-                year_month = f"{photo_date.year:04d}\\{photo_date.month:02d}"
-                target_dir = os.path.join(DEST_DIR, year_month)
+                if USE_DATE_IN_FILENAME:
+                    destination_folder = f"{photo_date.year:04d}\\{photo_date.month:02d}\\{photo_date.day:02d}"
+                else:
+                    destination_folder = f"{photo_date.year:04d}\\{photo_date.month:02d}"
+                    
+                target_dir = os.path.join(DEST_DIR, destination_folder)
                 os.makedirs(target_dir, exist_ok=True)
 
                 # Generate new filename

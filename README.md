@@ -4,7 +4,7 @@ This Python script automatically organizes your photos into a structured folder 
 
 ## Instructions
 
-0. **Verify all files extentions that are present in your Photo/Video folder running next powershell command (not sure hot to do it in python though)**:
+0. **Verify all files extensions that are present in your Photo/Video folder running next powershell command (not sure hot to do it in python though)**:
     ```pwsh
     Get-ChildItem -Recurse -File | ForEach-Object { $_.Extension } | Sort-Object -Unique
     ```
