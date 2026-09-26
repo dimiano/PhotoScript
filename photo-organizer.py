@@ -11,12 +11,12 @@ SOURCE_DIR = r"C:\Photo_and_video_to_sort"
 BASE_DIR = r"C:\Photo_and_video_sorted"
 DEST_DIR = BASE_DIR
 LOG_FILE = ""
-EXIFTOOL_PATH = r"exiftool-13.12\exiftool.exe"
+EXIFTOOL_PATH = r"exiftool-13.59\exiftool.exe"
 USE_DATE_IN_FILENAME = False
 CHECK_ERRORS_ONLY = False
 
 IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.tif', '.tiff', '.raw', '.cr2', '.nef', '.heic', '.nrw'} # Supported image extensions
-VIDEO_EXTENSIONS = {'.mp4', '.3gp', '.mov', '.avi'} # Supported video extensions
+VIDEO_EXTENSIONS = {'.mp4', '.3gp', '.mov', '.avi', '.mts'} # Supported video extensions
 ALL_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS # All supported extensions
 
 # Replace depending on file types: Photo or Video
@@ -200,6 +200,7 @@ def process_photos():
     
     # Keep track of processed files to avoid duplicates
     processed_hashes = set()
+    processed_files = {}
     COUNT = 0
     # First, get hashes of all existing files in destination
     log("\nScanning existing files in destination...\n")
@@ -211,6 +212,7 @@ def process_photos():
                 try:
                     file_hash = get_file_hash(file_path)
                     processed_hashes.add(file_hash)
+                    processed_files[file_hash] = file_path
                     log(f"Found {COUNT} existing file: '{filename}'", console=False)
                 except Exception as e:
                     log(f"Error processing existing file '{file_path}': {e}")
@@ -228,9 +230,10 @@ def process_photos():
                 try:
                     file_hash = get_file_hash(file_path)
                     if file_hash in processed_hashes:
-                        log(f"Skipping {COUNT} duplicate file: '{file_path}'")
+                        log(f"Skipping {COUNT} duplicate file: '{file_path}' of '{processed_files[file_hash]}'")
                         continue
                     processed_hashes.add(file_hash)
+                    processed_files[file_hash] = file_path
                 except Exception as e:
                     log(f"Error checking {COUNT} file hash '{file_path}': {e}")
                     continue

@@ -1,3 +1,6 @@
+# recursively scans a configured directory, filters for supported media extensions, 
+# extracts date/time values using a regex, and sets the file's timestamps
+
 import os
 import re
 import sys
