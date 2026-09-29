@@ -15,7 +15,7 @@ LOG_FILE = ""
 EXIFTOOL_PATH = r"exiftool-13.59\exiftool.exe"
 
 FILE_EXTENSIONS = {'.mp4', '.3gp', '.mov', '.avi', '.mts'} # Supported video extensions
-FILE_TYPE = "Video_datetime"
+FILE_TYPE = "Video_file_datetime"
 
 # Format the log file name (e.g., "2025-01-16_15-30-45.log")
 file_name = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.log")
@@ -25,13 +25,17 @@ if not os.path.isabs(EXIFTOOL_PATH):
     EXIFTOOL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), EXIFTOOL_PATH)
 
 
-def log(message, level="info"):
+def log(message='', level="info"):
     try:
         os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
     except Exception:
         pass
 
-    entry = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} [{level.upper()}] {message}"
+    if message is None or message == '':
+        entry = ''
+    else:
+        log_level = f"[{level.upper()}]" if level != "info" else ""
+        entry = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} {log_level} {message}"
 
     if LOG_FILE:
         try:
@@ -156,8 +160,9 @@ def process_video_files():
 
             file_path = os.path.join(root, filename)
             total_files += 1
-            log(f"\nProcessing file {total_files}: {file_path}")
-            print(f"Processing file {total_files}: {file_path}")
+            log()
+            log(f"{total_files}. File: {file_path}")
+            print(f"{total_files}. File: {file_path}")
 
             try:
                 dates = get_quicktime_dates(file_path)
@@ -177,7 +182,9 @@ def process_video_files():
                 log(f"Error updating timestamps for {file_path}: {exc}", "error")
                 skipped_files += 1
 
-    log(f"Completed. Total matching files: {total_files}; Updated: {updated_files}; Skipped: {skipped_files}")
+    log()
+    log(f"Completed. Total matching files: {total_files}; Updated: {updated_files}; Skipped: {skipped_files}\n")
+    print(f"\nCompleted. Total matching files: {total_files}; Updated: {updated_files}; Skipped: {skipped_files}")
 
 
 def verify_setup():
@@ -195,9 +202,13 @@ def verify_setup():
 
 
 if __name__ == "__main__":
-    log(f"Starting QuickTime timestamp update at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", "info")
+    log("Starting QuickTime timestamp update")
+    print("Starting QuickTime timestamp update at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
     if not verify_setup():
         raise SystemExit(1)
 
     process_video_files()
+
+    print("End file processing at", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    print("Total time taken:", datetime.now() - datetime.strptime(file_name[:-4], "%Y-%m-%d_%H-%M-%S"))
